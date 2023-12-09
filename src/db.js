@@ -23,7 +23,6 @@ function Database() {
   }
   async function _addExpenseObject(id, expenseObject) {
     try {
-      await ConnectDatabase();
       const filter = { userId: id };
       const udpateQuery = { $push: expenseObject };
       const result = collection.udpateOne(filter, updateQuery);
@@ -33,13 +32,10 @@ function Database() {
         `Error in adding expense for userId ${id} and expense object ${expenseObject}`,
         error
       );
-    } finally {
-      await DisconnectDatabase();
     }
   }
   async function _updateTotalExpense(id, num) {
     try {
-      await ConnectDatabase();
       const filter = { userId: id };
       const updateQuery = { $set: (totalExpense += num) };
       const result = collection.udpateOne(filter, updateQuery);
@@ -49,13 +45,10 @@ function Database() {
         `Error in adding expense value to totalExpense for user with id ${id}`,
         error
       );
-    } finally {
-      await DisconnectDatabase();
     }
   }
   async function _updateExpenseObject(id, categoryCode, amount) {
     try {
-      await ConnectDatabase();
       const filter = {
         $and: [{ userId: id }, { "expenses.category.code": categoryCode }],
       };
@@ -69,13 +62,11 @@ function Database() {
         `Error in adding expense value to totalExpense for user with id ${id}`,
         error
       );
-    } finally {
-      await DisconnectDatabase();
     }
   }
   this.AddUser = async function (msg) {
     try {
-      _connectDatabase();
+      await _connectDatabase();
       var result = await collection.insertOne({
         userId: msg.from.id,
         firstName: msg.from.first_name,
@@ -87,31 +78,31 @@ function Database() {
     } catch (error) {
       console.log("error in adding user", error);
     } finally {
-      _disconnectDatabase();
+      await _disconnectDatabase();
     }
   };
   this.GetUserExpenseDocument = async function (id) {
     try {
-      await ConnectDatabase();
+      await _connectDatabase();
       let filter = { userId: id };
       let document = await collection.find(filter).toArray();
       return document;
     } catch (error) {
       console.log(`Error in getting UserExpense document for id ${id}`, error);
     } finally {
-      await ConnectDatabase();
+      await _disconnectDatabase();
     }
   };
   this.RemoveUserExpenseDocument = async function (id) {
     try {
-      await ConnectDatabase();
+      await _connectDatabase();
       const filter = { userId: id };
       const result = collection.deleteOne(filter);
       console.log(`Deleted userExpense with userId ${id}`);
     } catch (error) {
       console.log(`Error in deleting userExpense with userId ${id}`, error);
     } finally {
-      await DisconnectDatabase();
+      await _disconnectDatabase();
     }
   };
   this.AddOrUpdateExpense = async function (
@@ -121,57 +112,59 @@ function Database() {
     amount,
     updateRequired = false
   ) {
-    let updateHappened = false;
-    let addOrUpdateExpenseObject = {};
-    let updateTotalExpenseRes = {};
-    if (updateRequired) {
-      let document = await this.GetUserExpenseDocument(id);
-      if (
-        document != null &&
-        document.expenses != null &&
-        document.expenses.length > 0
-      ) {
-        for (let i = 0; i < expenses.length; i++) {
-          if (
-            document.expenses[i].category.code == expenseObject.category.code
-          ) {
-            updateHappened = true;
+    try {
+      await _connectDatabase();
+      let updateHappened = false;
+      let addOrUpdateExpenseObject = {};
+      let updateTotalExpenseRes = {};
+      if (updateRequired) {
+        let document = await this.GetUserExpenseDocument(id);
+        if (
+          document != null &&
+          document.expenses != null &&
+          document.expenses.length > 0
+        ) {
+          for (let i = 0; i < expenses.length; i++) {
+            if (
+              document.expenses[i].category.code == expenseObject.category.code
+            ) {
+              updateHappened = true;
+            }
           }
         }
       }
+      if (!updateHappened) {
+        let expenseObject = {
+          category: {
+            code: code,
+            name: name,
+          },
+          amount: amount,
+          createdOn: new Date(),
+        };
+        addOrUpdateExpenseObject = await _addExpenseObject(id, expenseObject);
+      } else {
+        addOrUpdateExpenseObject = await _updateExpenseObject(
+          id,
+          expenseObject.category.code,
+          amount
+        );
+      }
+      updateTotalExpenseRes = await _updateTotalExpense(id, amount);
+      if (
+        addOrUpdateExpenseObject.modifiedCount > 0 &&
+        updateTotalExpenseRes.modifiedCount > 0
+      ) {
+        return true;
+      }
+      return false;
+    } finally {
+      await _disconnectDatabase();
     }
-    if (!updateHappened) {
-      let expenseObject = {
-        category: {
-          code: code,
-          name: name,
-        },
-        amount: amount,
-        createdOn: new Date(),
-      };
-      addOrUpdateExpenseObject = await _addExpenseObjectInArray(
-        id,
-        expenseObject
-      );
-    } else {
-      addOrUpdateExpenseObject = await _updateExpenseObject(
-        id,
-        expenseObject.category.code,
-        amount
-      );
-    }
-    updateTotalExpenseRes = await _updateTotalExpense(id, amount);
-    if (
-      addOrUpdateExpenseObject.modifiedCount > 0 &&
-      updateTotalExpenseRes.modifiedCount > 0
-    ) {
-      return true;
-    }
-    return false;
   };
   this.GetExpensesByCategory = async function (id) {
     try {
-      _connectDatabase();
+      await _connectDatabase();
       const pipeline = [
         { $match: { userId: id } },
         {
@@ -192,7 +185,7 @@ function Database() {
         error
       );
     } finally {
-      _disconnectDatabase();
+      await _disconnectDatabase();
     }
   };
 }
