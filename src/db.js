@@ -73,7 +73,7 @@ function Database() {
         totalExpenses: 0.0,
         expenses: [],
       });
-      console.log(`Success: AddUser for userId ${id}`);
+      console.log(`Success: AddUser for userId ${msg.from.id}`);
       return result;
     } catch (error) {
       console.log("error in adding user", error);
@@ -81,7 +81,7 @@ function Database() {
       await _disconnectDatabase();
     }
   };
-  this.GetUserExpenseDocument = async function (id) {
+  this.CheckIfUserExists = async function (id) {
     try {
       await _connectDatabase();
       let filter = { userId: id };
@@ -189,5 +189,4 @@ function Database() {
     }
   };
 }
-
 module.exports = Database;
