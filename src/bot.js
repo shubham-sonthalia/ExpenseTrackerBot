@@ -1,19 +1,20 @@
-const TelegramBot = require("node-telegram-bot-api");
-const { categoryCodeAndType } = require("./model/categoryCodeAndType");
-const {db} = require("./db");
 require("dotenv").config();
+const TelegramBot = require("node-telegram-bot-api");
+const { categoryCodeAndType } = require("./model/categoryCodeAndType.js");
+const { db } = require("./db");
 
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  polling: true,
+});
 
-const bot = new TelegramBot(TOKEN, { polling: true });
-
-bot.on("message", function (msg) {
+bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  const messageText = msg.text;
+  bot.sendMessage(
+    chatId,
+    "Hello! I am your Telegram Bot. Type /help to see available commands."
+  );
+});
 
-  if (messageText === "/start") {
-    bot.sendMessage(chatId, "Welcome to my bot!");
-  }
-  console.log(msg.from.id);
-  console.log(typeof msg.from.id);
+bot.on("polling_error", (msg) => {
+  console.log(msg);
 });
