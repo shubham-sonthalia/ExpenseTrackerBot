@@ -98,8 +98,6 @@ function Database() {
       return document;
     } catch (error) {
       console.log(`Error in getting UserExpense document for id ${id}`, error);
-    } finally {
-      await _disconnectDatabase();
     }
   };
   this.RemoveUserExpenseDocument = async function (id) {
