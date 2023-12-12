@@ -39,6 +39,14 @@ async function sendWelcomeMessageText(msg) {
       /detail - to get the category-wise analaysis of your expenses.`
   );
 }
+async function sendToastMessage(msg) {
+  const params = {
+    chat_id: msg.chat.id,
+    text: "Expense added successfully!",
+    parse_mode: "HTML", // You can change this to 'Markdown' if you prefer
+  };
+  await bot.sendMessage(params);
+}
 bot.onText(/\/start/, (msg) => {
   db.CheckIfUserExists(msg.from.id).then((res) => {
     if (res.length == 0) {
@@ -71,19 +79,41 @@ bot.on("text", (msg) => {
   if (categories.includes(msg.text.toLowerCase())) {
     switch (msg.text) {
       case "Investment":
-        db.AddOrUpdateExpense(msg.from.id, "1", "Investment", curAmount);
+        db.AddOrUpdateExpense(msg.from.id, "1", "Investment", curAmount).then(
+          () => {
+            sendToastMessage(msg);
+          }
+        );
         break;
       case "Rent":
-        db.AddOrUpdateExpense(msg.from.id, "2", "Rent", curAmount);
+        db.AddOrUpdateExpense(msg.from.id, "2", "Rent", curAmount).then(() => {
+          sendToastMessage(msg);
+        });
         break;
       case "Entertainment":
-        db.AddOrUpdateExpense(msg.from.id, "3", "Entertainment", curAmount);
+        db.AddOrUpdateExpense(
+          msg.from.id,
+          "3",
+          "Entertainment",
+          curAmount
+        ).then(() => {
+          sendToastMessage(msg);
+        });
         break;
       case "Food":
-        db.AddOrUpdateExpense(msg.from.id, "4", "Food", curAmount);
+        db.AddOrUpdateExpense(msg.from.id, "4", "Food", curAmount).then(() => {
+          sendToastMessage(msg);
+        });
         break;
       case "Miscellaneous":
-        db.AddOrUpdateExpense(msg.from.id, "5", "Miscellaneous", curAmount);
+        db.AddOrUpdateExpense(
+          msg.from.id,
+          "5",
+          "Miscellaneous",
+          curAmount
+        ).then(() => {
+          sendToastMessage(msg);
+        });
         break;
     }
   }
