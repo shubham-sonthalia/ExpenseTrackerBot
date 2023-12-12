@@ -24,9 +24,14 @@ function Database() {
   async function _addExpenseObject(id, expenseObject) {
     try {
       const filter = { userId: id };
-      const udpateQuery = { $push: expenseObject };
-      const result = collection.udpateOne(filter, updateQuery);
+      const updateQuery = {
+        $push: {
+          expenses: expenseObject,
+        },
+      };
+      const result = await collection.updateOne(filter, updateQuery);
       console.log(`Added expense with userId ${id}`);
+      return result;
     } catch (error) {
       console.log(
         `Error in adding expense for userId ${id} and expense object ${expenseObject}`,
@@ -37,9 +42,14 @@ function Database() {
   async function _updateTotalExpense(id, num) {
     try {
       const filter = { userId: id };
-      const updateQuery = { $set: (totalExpense += num) };
-      const result = collection.udpateOne(filter, updateQuery);
+      const updateQuery = {
+        $inc: {
+          ["totalExpenses"]: num,
+        },
+      };
+      const result = await collection.updateOne(filter, updateQuery);
       console.log(`Updated totalExpense for userId ${id}`);
+      return result;
     } catch (error) {
       console.log(
         `Error in adding expense value to totalExpense for user with id ${id}`,
@@ -55,8 +65,9 @@ function Database() {
       const updateQuery = {
         $inc: { "expenses.$.amount": amount },
       };
-      const result = collection.udpateOne(filter, updateQuery);
+      const result = await collection.udpateOne(filter, updateQuery);
       console.log(`Updated expense object for userId ${id} and category`);
+      return result;
     } catch (error) {
       console.log(
         `Error in adding expense value to totalExpense for user with id ${id}`,
@@ -169,12 +180,11 @@ function Database() {
         { $match: { userId: id } },
         {
           $group: {
-            _id: "$expenses.category.code",
+            _id: "$expenses.category.name",
             total: { $sum: "$expenses.amount" },
           },
         },
         { $sort: { total: -1 } },
-        { $limit: 5 },
       ];
       const aggregateResult = await collection.aggregate(pipeline).toArray();
       console.log("Success: GetExpensesByCategory");
