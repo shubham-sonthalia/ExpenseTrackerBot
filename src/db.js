@@ -88,8 +88,6 @@ function Database() {
       return result;
     } catch (error) {
       console.log("error in adding user", error);
-    } finally {
-      await _disconnectDatabase();
     }
   };
   this.CheckIfUserExists = async function (id) {
@@ -169,8 +167,8 @@ function Database() {
         return true;
       }
       return false;
-    } finally {
-      await _disconnectDatabase();
+    } catch (error) {
+      console.log("error in adding expense object", error);
     }
   };
   this.GetExpensesByCategory = async function (id) {
@@ -194,8 +192,6 @@ function Database() {
         `error in getting expenses by category for user with id ${id}`,
         error
       );
-    } finally {
-      await _disconnectDatabase();
     }
   };
 }
