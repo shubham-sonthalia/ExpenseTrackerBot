@@ -1,7 +1,6 @@
 require("dotenv").config();
 const TelegramBot = require("node-telegram-bot-api");
-const { categoryCodeAndType } = require("./model/categoryCodeAndType.js");
-const Database = require("./db");
+const Database = require("./db.js");
 let curAmount = 0;
 const categories = [
   "investment",
@@ -10,7 +9,6 @@ const categories = [
   "food",
   "miscellaneous",
 ];
-
 const options = {
   reply_markup: {
     keyboard: [
@@ -23,12 +21,11 @@ const options = {
   },
 };
 
-// const keyboardMarkupJson = JSON.stringify(keyboardMarkup);
-
 bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
   polling: true,
 });
 const db = new Database();
+
 async function sendWelcomeMessageText(msg) {
   await bot.sendMessage(
     msg.chat.id,
@@ -62,7 +59,6 @@ bot.onText(/\/detail/, (msg) => {
     bot.sendMessage(msg.chat.id, formattedString);
   });
 });
-
 bot.onText(/^\d+$/, (msg) => {
   curAmount = parseFloat(msg.text);
   bot.sendMessage(
@@ -92,7 +88,6 @@ bot.on("text", (msg) => {
     }
   }
 });
-
 bot.on("polling_error", (msg) => {
   console.log(msg);
 });
