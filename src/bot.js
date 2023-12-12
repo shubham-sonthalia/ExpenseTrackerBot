@@ -55,6 +55,13 @@ bot.onText(/\/start/, (msg) => {
 });
 bot.onText(/\/detail/, (msg) => {
   db.GetExpensesByCategory(msg.from.id).then((res) => {
+    // [
+    //   { _id: "Entertainment", total: 900 },
+    //   { _id: "Miscellaneous", total: 1870 },
+    //   { _id: "Food", total: 454 },
+    //   { _id: "Investment", total: 100 },
+    // ];
+    
     bot.sendMessage(msg.chat.id, JSON.stringify(res));
   });
 });

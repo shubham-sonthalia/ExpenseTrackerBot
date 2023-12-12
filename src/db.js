@@ -178,13 +178,13 @@ function Database() {
       await _connectDatabase();
       const pipeline = [
         { $match: { userId: id } },
+        { $unwind: "$expenses" },
         {
           $group: {
             _id: "$expenses.category.name",
             total: { $sum: "$expenses.amount" },
           },
         },
-        { $sort: { total: -1 } },
       ];
       const aggregateResult = await collection.aggregate(pipeline).toArray();
       console.log("Success: GetExpensesByCategory");
