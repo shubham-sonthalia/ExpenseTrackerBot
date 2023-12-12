@@ -43,9 +43,9 @@ async function sendToastMessage(msg) {
   const params = {
     chat_id: msg.chat.id,
     text: "Expense added successfully!",
-    parse_mode: "HTML", // You can change this to 'Markdown' if you prefer
+    parse_mode: "HTML",
   };
-  await bot.sendMessage(params);
+  await bot.sendMessage(msg.chat.id, `Expense added! ✅`);
 }
 bot.onText(/\/start/, (msg) => {
   db.CheckIfUserExists(msg.from.id).then((res) => {
