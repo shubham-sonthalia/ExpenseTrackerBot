@@ -43,6 +43,7 @@ async function sendToastMessage(msg) {
     text: "Expense added successfully!",
     parse_mode: "HTML",
   };
+  curAmount = 0;
   await bot.sendMessage(msg.chat.id, `Expense added! ✅`);
 }
 bot.onText(/\/start/, (msg) => {
@@ -79,14 +80,12 @@ bot.on("text", (msg) => {
       case "Investment":
         db.AddOrUpdateExpense(msg.from.id, "1", "Investment", curAmount).then(
           () => {
-            curAmount = 0;
             sendToastMessage(msg);
           }
         );
         break;
       case "Rent":
         db.AddOrUpdateExpense(msg.from.id, "2", "Rent", curAmount).then(() => {
-          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
@@ -97,13 +96,11 @@ bot.on("text", (msg) => {
           "Entertainment",
           curAmount
         ).then(() => {
-          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
       case "Food":
         db.AddOrUpdateExpense(msg.from.id, "4", "Food", curAmount).then(() => {
-          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
@@ -114,7 +111,6 @@ bot.on("text", (msg) => {
           "Miscellaneous",
           curAmount
         ).then(() => {
-          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
