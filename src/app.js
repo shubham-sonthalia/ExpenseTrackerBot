@@ -18,6 +18,7 @@ const options = {
     ],
     resize_keyboard: true,
     one_time_keyboard: true,
+    reply_keyboard_remove: true,
   },
 };
 
@@ -33,10 +34,7 @@ async function sendWelcomeMessageText(msg) {
     Steps to add expense: 
     1. Enter the spent amount. 
     2. The bot will prompt you with a message to choose the category of the expense. 
-    3. Choose and category. 
-    4. Done. 
-    5. Use the following commands to get the analysis of your expense: 
-      /detail - to get the category-wise analaysis of your expenses.`
+    3. Click on the category.`
   );
 }
 async function sendToastMessage(msg) {
@@ -76,17 +74,19 @@ bot.onText(/^\d+$/, (msg) => {
   );
 });
 bot.on("text", (msg) => {
-  if (categories.includes(msg.text.toLowerCase())) {
+  if (categories.includes(msg.text.toLowerCase()) && curAmount > 0) {
     switch (msg.text) {
       case "Investment":
         db.AddOrUpdateExpense(msg.from.id, "1", "Investment", curAmount).then(
           () => {
+            curAmount = 0;
             sendToastMessage(msg);
           }
         );
         break;
       case "Rent":
         db.AddOrUpdateExpense(msg.from.id, "2", "Rent", curAmount).then(() => {
+          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
@@ -97,11 +97,13 @@ bot.on("text", (msg) => {
           "Entertainment",
           curAmount
         ).then(() => {
+          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
       case "Food":
         db.AddOrUpdateExpense(msg.from.id, "4", "Food", curAmount).then(() => {
+          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
@@ -112,10 +114,14 @@ bot.on("text", (msg) => {
           "Miscellaneous",
           curAmount
         ).then(() => {
+          curAmount = 0;
           sendToastMessage(msg);
         });
         break;
     }
+  } else if (categories.includes(msg.text.toLowerCase()) && curAmount == 0) {
+    bot.sendMessage(msg.chat.id, `No amount recorded for this category ❌`);
+    bot.sendMessage(msg.chat.id, "Please enter the amount and try again! 🫡");
   }
 });
 bot.on("polling_error", (msg) => {
