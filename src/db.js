@@ -5,7 +5,11 @@ function Database() {
   const client = new MongoClient(process.env.URI);
   const database = client.db(process.env.DATABASE);
   const collection = database.collection(process.env.COLLECTION);
-
+  function convertToGMT(date) {
+    const offset = date.getTimezoneOffset();
+    const gmtDate = new Date(date.getTime() + offset * 60 * 1000);
+    return gmtDate;
+  }
   async function _connectDatabase() {
     try {
       await client.connect();
@@ -83,6 +87,7 @@ function Database() {
         firstName: msg.from.first_name,
         totalExpenses: 0.0,
         expenses: [],
+        categories: [],
       });
       console.log(`Success: AddUser for userId ${msg.from.id}`);
       return result;
@@ -114,7 +119,7 @@ function Database() {
   };
   this.AddOrUpdateExpense = async function (
     id,
-    code,
+    description,
     name,
     amount,
     updateRequired = false
@@ -143,11 +148,11 @@ function Database() {
       if (!updateHappened) {
         let expenseObject = {
           category: {
-            code: code,
             name: name,
           },
+          description: description,
           amount: amount,
-          createdOn: new Date(),
+          createdOn: convertToGMT(new Date()),
         };
         addOrUpdateExpenseObject = await _addExpenseObject(id, expenseObject);
       } else {
@@ -190,6 +195,121 @@ function Database() {
         `error in getting expenses by category for user with id ${id}`,
         error
       );
+    }
+  };
+  this.GetExpensesWithinDateRange = async function (id, startTime, endTime) {
+    try {
+      await _connectDatabase();
+      startTime = new Date(startTime);
+      endTime = new Date(endTime);
+      const pipeline = [
+        {
+          $match: {
+            userId: id,
+          },
+        },
+        {
+          $project: {
+            expenses: {
+              $filter: {
+                input: "$expenses",
+                as: "expense",
+                cond: {
+                  $and: [
+                    {
+                      $gte: ["$$expense.createdOn", convertToGMT(startTime)],
+                    },
+                    {
+                      $lt: ["$$expense.createdOn", convertToGMT(endTime)],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        { $unwind: "$expenses" },
+        {
+          $group: {
+            _id: "$expenses.category.name",
+            total: { $sum: "$expenses.amount" },
+          },
+        },
+      ];
+      const aggregateResult = await collection.aggregate(pipeline).toArray();
+      console.log(aggregateResult);
+      console.log("Success: GetExpensesByCategory");
+      return aggregateResult;
+    } catch (error) {
+      console.log(
+        `error in getting expenses by category for user with id ${id}`,
+        error
+      );
+    }
+  };
+  this.SetDefaultCategoriesForUser = async function (msg) {
+    try {
+      await _connectDatabase();
+      var result = await collection.updateOne(
+        { userId: msg.from.id }, // Specify the filter for the document
+        {
+          $set: {
+            categories: [
+              "Investment",
+              "Rent",
+              "Entertainment",
+              "Food",
+              "Education",
+            ],
+          },
+        }
+      );
+      console.log(`Success: SetDefaultCategoriesForUser ${msg.from.id}`);
+      return result;
+    } catch (error) {
+      console.log("error in setting default categories for user", error);
+    }
+  };
+  this.GetUserCategories = async function (msg) {
+    try {
+      await _connectDatabase();
+      const matchQuery = { userId: msg.from.id };
+      const projection = { categories: 1 };
+      var result = await collection.find(matchQuery, projection).toArray();
+      console.log(`Success: GetUserCategories ${msg.from.id}`);
+      return result[0].categories;
+    } catch (error) {
+      console.log("error in getting user categories", error);
+    }
+  };
+  this.AddCategoryForUser = async function (msg, categories) {
+    try {
+      await _connectDatabase();
+      const matchQuery = { userId: msg.from.id };
+      const updateQuery = {
+        $push: {
+          categories: {
+            $each: categories,
+          },
+        },
+      };
+      let res = await collection.updateOne(matchQuery, updateQuery);
+      console.log(`Success: AddCategoryForUser ${msg.from.id}`);
+      return res;
+    } catch (error) {
+      console.log("error in adding user categories", error);
+    }
+  };
+  this.FlushAllCategoriesForUser = async function (userId) {
+    try {
+      await _connectDatabase();
+      const matchQuery = { userId: userId };
+      const updateQuery = { $set: { categories: [] } };
+      var res = await collection.updateOne(matchQuery, updateQuery);
+      console.log(`Success: FlushAllCategoriesForUser ${msg.from.id}`);
+      return res;
+    } catch (error) {
+      console.log("error in flushing user categories", error);
     }
   };
 }
