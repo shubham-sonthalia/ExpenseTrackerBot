@@ -105,16 +105,14 @@ function Database() {
       console.log(`Error in getting UserExpense document for id ${id}`, error);
     }
   };
-  this.RemoveUserExpenseDocument = async function (id) {
+  this.RemoveUser = async function (id) {
     try {
       await _connectDatabase();
       const filter = { userId: id };
-      const result = collection.deleteOne(filter);
+      const result = await collection.deleteOne(filter);
       console.log(`Deleted userExpense with userId ${id}`);
     } catch (error) {
       console.log(`Error in deleting userExpense with userId ${id}`, error);
-    } finally {
-      await _disconnectDatabase();
     }
   };
   this.AddOrUpdateExpense = async function (
