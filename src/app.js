@@ -65,9 +65,6 @@ async function sendWelcomeMessageText(msg) {
     ${Instructions}`
   );
 }
-async function sendInstructions(msg) {
-  await bot.sendMessage(msg.chat.id, Instructions);
-}
 function PrepareInlineKeyboard(res) {
   let inLineKeyboard = [];
   let tempInlineKeyboard = [];
@@ -153,6 +150,22 @@ bot.onText(/\/setdefault/, (msg) => {
     bot.sendMessage(msg.chat.id, "Default Categories saved!");
   });
 });
+bot.onText(/\/stop/, (msg) => {
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [{ text: "Yes", callback_data: "yes_deleteUser" }],
+      [{ text: "No", callback_data: "no_deleteUser" }],
+    ],
+    remove_keyboard: true,
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+  bot.sendMessage(
+    msg.chat.id,
+    "Are you sure you want to leave ExpenseTracker and reset all data? ",
+    { reply_markup: inlineKeyboard }
+  );
+});
 bot.onText(/^\d+$/, (msg) => {
   curExpenseObject.curAmount = parseFloat(msg.text);
   db.GetUserCategories(msg).then((res) => {
@@ -213,8 +226,12 @@ bot.on("callback_query", (query) => {
         );
       });
     }
-  }
-  if (query.data == "no_description") {
+  } else if (query.data == "yes_deleteUser") {
+    bot.sendMessage(
+      query.message.chat.id,
+      "User Deleted. If you want to resume again, use /start command"
+    );
+  } else if (query.data == "no_description") {
     db.AddOrUpdateExpense(
       query.message.chat.id,
       "",
