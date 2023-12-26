@@ -2,6 +2,54 @@ require("dotenv").config();
 const TelegramBot = require("node-telegram-bot-api");
 const Calendar = require("telegram-inline-calendar");
 const Database = require("./db.js");
+const Table = require("ascii-table");
+const pdfMake = require("pdfmake");
+
+function convertAsciiTableToPdfMake(asciiTableData) {
+  const pdfMakeTableData = [];
+
+  for (const row of asciiTableData) {
+    const pdfMakeRow = [];
+    for (const cell of row) {
+      pdfMakeRow.push({ text: String(cell), border: [1, 1, 1, 1] });
+    }
+    pdfMakeTableData.push(pdfMakeRow);
+  }
+
+  return pdfMakeTableData;
+}
+
+async function CreatePDFStructureAndSavePDF() {
+  if (expenseObj.length > 0) {
+    const asciiTableData = new Table(`ExpenseTrackerBot`);
+    asciiTableData.setHeading("Amount", "Cateogry", "Description", "AddedOn");
+    for (let i = 0; i < expenseObj[0].expenses.length; i++) {
+      let expense = expenseObj[0].expenses[i];
+      asciiTableData.addRow(
+        expense.amount,
+        expense.category.name,
+        expense.description,
+        `${new Date(expense.createdOn).getDate()}/${new Date(
+          expense.createdOn
+        ).getMonth()}/${new Date(expense.createdOn).getFullYear()}`
+      );
+    }
+    const docDefinition = {
+      content: [
+        {
+          table: {
+            body: convertAsciiTableToPdfMake(asciiTableData),
+          },
+        },
+      ],
+    };
+    const pdfDoc = pdfMake.createPdf(docDefinition);
+    await pdfDoc.getBuffer((buffer) => {
+      fs.writeFileSync("output.pdf", buffer);
+      console.log("PDF created successfully.");
+    });
+  }
+}
 let curExpenseObject = {
   curAmount: 0,
   curCategory: "",
@@ -11,6 +59,8 @@ let categories = [];
 let waitingForUserDescription = false;
 let fromDate = "";
 let toDate = "";
+let messageIdToDelete = "";
+let expenseObj = [];
 const confirmationMessage = ["Yes", "No"];
 const Instructions = `Instructions - 
 
@@ -95,16 +145,69 @@ async function sendToastMessage(msg) {
   curExpenseObject.curDescription = "";
 }
 async function GetTotalExpenses(chatId, startTime, endTime) {
+  db.GetDescriptiveExpensesWithinDateRange(chatId, startTime, endTime).then(
+    (res) => {
+      let formattedString = ``;
+      if (res == null || res.length == 0 || res[0].expenses.length == 0) {
+        bot.sendMessage(
+          chatId,
+          "No expenses added in the requested timeframe!"
+        );
+      } else {
+        expenseObj = res;
+        const table = new Table(`${fromDate} to ${toDate}`);
+        table.setHeading("Amount", "Cateogry", "Description");
+        for (let i = 0; i < res[0].expenses.length; i++) {
+          let expense = res[0].expenses[i];
+          table.addRow(
+            expense.amount,
+            expense.category.name,
+            expense.description
+            // `${new Date(expense.createdOn).getDate()}/${new Date(
+            //   expense.createdOn
+            // ).getMonth()}/${new Date(expense.createdOn).getFullYear()}`
+          );
+        }
+        bot
+          .sendMessage(chatId, "```\n" + table + "\n```", {
+            parse_mode: "Markdown",
+          })
+          .then(() => {
+            const inlineKeyboard = {
+              inline_keyboard: [
+                [{ text: "Yes", callback_data: "yes_userTroubleWithDetail" }],
+                [{ text: "No", callback_data: "no_userTroubleWithDetail" }],
+              ],
+              remove_keyboard: true,
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            };
+            bot.sendMessage(
+              chatId,
+              "Having trouble viewing the above message? Click on 'Yes' if you want to download a PDF of this detail.",
+              { reply_markup: inlineKeyboard }
+            );
+          });
+      }
+      fromDate = "";
+      toDate = "";
+    }
+  );
+}
+async function GetExpensesByCategory(chatId, startTime, endTime) {
   db.GetExpensesWithinDateRange(chatId, startTime, endTime).then((res) => {
     let formattedString = ``;
     if (res.length == 0) {
       bot.sendMessage(chatId, "No expenses added in the requested timeframe!");
     } else {
-      formattedString += `Expenses between ${fromDate} to ${toDate}:\n`;
+      const table = new Table(`${fromDate} to ${toDate}`);
+      table.setHeading("S.no", "Cateogry", "Amount");
       for (let i = 0; i < res.length; i++) {
-        formattedString += `${res[i]["_id"]} : ${res[i]["total"]}\n`;
+        table.addRow(i + 1, res[i]["_id"], res[i]["total"]);
       }
-      bot.sendMessage(chatId, formattedString);
+      bot.sendMessage(chatId, "```\n" + table + "\n```", {
+        parse_mode: "Markdown",
+      });
     }
     fromDate = "";
     toDate = "";
@@ -139,8 +242,12 @@ bot.onText(/\/flush/, (msg) => {
   );
 });
 bot.onText(/\/detail/, (msg) => {
-  bot.sendMessage(msg.chat.id, `Please choose a start date.`);
-  calendar.startNavCalendar(msg);
+  bot
+    .sendMessage(msg.chat.id, `Please choose a start date.`)
+    .then((sentMessage) => {
+      calendar.startNavCalendar(msg);
+      messageIdToDelete = sentMessage.message_id;
+    });
 });
 bot.onText(/\/instructions/, (msg) => {
   bot.sendMessage(msg.chat.id, Instructions);
@@ -184,14 +291,18 @@ bot.onText(/^\d+$/, (msg) => {
   });
 });
 bot.on("callback_query", (query) => {
-  bot.deleteMessage(query.message.chat.id, query.message.message_id);
   if (query.message.message_id == calendar.chats.get(query.message.chat.id)) {
     res = calendar.clickButtonCalendar(query);
     if (res !== -1) {
+      bot.deleteMessage(query.message.chat.id, messageIdToDelete);
       if (fromDate === "") {
         fromDate = res;
-        bot.sendMessage(query.message.chat.id, "Please choose an end date.");
-        calendar.startNavCalendar(query.message);
+        bot
+          .sendMessage(query.message.chat.id, `Please choose an end date.`)
+          .then((sentMessage) => {
+            calendar.startNavCalendar(query.message);
+            messageIdToDelete = sentMessage.message_id;
+          });
       } else if (toDate === "") {
         let fromDateTime = fromDate + " " + "00:00:00";
         toDate = res;
@@ -200,12 +311,13 @@ bot.on("callback_query", (query) => {
       }
     }
   } else if (categories.includes(query.data)) {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
     if (curExpenseObject.curAmount != 0) {
       curExpenseObject.curCategory = query.data;
       const inlineKeyboard = {
         inline_keyboard: [
-          [{ text: `👍`, callback_data: "yes_description" }],
-          [{ text: `👎`, callback_data: "no_description" }],
+          [{ text: "Yes", callback_data: "yes_description" }],
+          [{ text: "No", callback_data: "no_description" }],
         ],
         remove_keyboard: true,
         resize_keyboard: true,
@@ -213,11 +325,12 @@ bot.on("callback_query", (query) => {
       };
       bot.sendMessage(
         query.message.chat.id,
-        `Choose '👍' to add any description. Else '👎'`,
+        `Do you want to add any description to this expense?`,
         { reply_markup: inlineKeyboard }
       );
     }
   } else if (confirmationMessage.includes(query.data)) {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
     if (query.data == "Yes") {
       db.FlushAllCategoriesForUser(query.message.chat.id).then((res) => {
         bot.sendMessage(
@@ -227,11 +340,13 @@ bot.on("callback_query", (query) => {
       });
     }
   } else if (query.data == "yes_deleteUser") {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
     bot.sendMessage(
       query.message.chat.id,
       "User Deleted. If you want to resume again, use /start command"
     );
   } else if (query.data == "no_description") {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
     db.AddOrUpdateExpense(
       query.message.chat.id,
       "",
@@ -241,11 +356,34 @@ bot.on("callback_query", (query) => {
       sendToastMessage(query.message);
     });
   } else if (query.data == "yes_description") {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
     waitingForUserDescription = true;
     bot.sendMessage(
       query.message.chat.id,
       "Enter the description for the expense"
     );
+  } else if (query.data == "yes_userTroubleWithDetail") {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
+    CreatePDFStructureAndSavePDF().then(() => {
+      // const documentPath = "output.pdf";
+      // bot
+      //   .sendDocument(query.message.chat.id, documentPath, {
+      //     caption: "Expense Recrods",
+      //   })
+      //   .then((sentMessage) => {
+      //     console.log(
+      //       "Document sent successfully:",
+      //       sentMessage.document.file_name
+      //     );
+      //   })
+      //   .catch((error) => {
+      //     console.error("Error sending document:", error.message);
+      //   });
+      // bot.sendDocument;
+    });
+    // create a PDF to send the details
+  } else if (query.data == "no_userTroubleWithDetail") {
+    bot.deleteMessage(query.message.chat.id, query.message.message_id);
   }
 });
 bot.on("text", (msg) => {
