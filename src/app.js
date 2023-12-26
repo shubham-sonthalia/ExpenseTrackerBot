@@ -163,9 +163,6 @@ async function GetTotalExpenses(chatId, startTime, endTime) {
             expense.amount,
             expense.category.name,
             expense.description
-            // `${new Date(expense.createdOn).getDate()}/${new Date(
-            //   expense.createdOn
-            // ).getMonth()}/${new Date(expense.createdOn).getFullYear()}`
           );
         }
         bot
@@ -173,20 +170,20 @@ async function GetTotalExpenses(chatId, startTime, endTime) {
             parse_mode: "Markdown",
           })
           .then(() => {
-            const inlineKeyboard = {
-              inline_keyboard: [
-                [{ text: "Yes", callback_data: "yes_userTroubleWithDetail" }],
-                [{ text: "No", callback_data: "no_userTroubleWithDetail" }],
-              ],
-              remove_keyboard: true,
-              resize_keyboard: true,
-              one_time_keyboard: true,
-            };
-            bot.sendMessage(
-              chatId,
-              "Having trouble viewing the above message? Click on 'Yes' if you want to download a PDF of this detail.",
-              { reply_markup: inlineKeyboard }
-            );
+            // const inlineKeyboard = {
+            //   inline_keyboard: [
+            //     [{ text: "Yes", callback_data: "yes_userTroubleWithDetail" }],
+            //     [{ text: "No", callback_data: "no_userTroubleWithDetail" }],
+            //   ],
+            //   remove_keyboard: true,
+            //   resize_keyboard: true,
+            //   one_time_keyboard: true,
+            // };
+            // bot.sendMessage(
+            //   chatId,
+            //   "Having trouble viewing the above message? Click on 'Yes' if you want to download a PDF of this detail.",
+            //   { reply_markup: inlineKeyboard }
+            // );
           });
       }
       fromDate = "";
