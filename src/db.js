@@ -245,6 +245,53 @@ function Database() {
       );
     }
   };
+  this.GetDescriptiveExpensesWithinDateRange = async function (
+    id,
+    startTime,
+    endTime
+  ) {
+    try {
+      await _connectDatabase();
+      startTime = new Date(startTime);
+      endTime = new Date(endTime);
+      const pipeline = [
+        {
+          $match: {
+            userId: id,
+          },
+        },
+        {
+          $project: {
+            expenses: {
+              $filter: {
+                input: "$expenses",
+                as: "expense",
+                cond: {
+                  $and: [
+                    {
+                      $gte: ["$$expense.createdOn", convertToGMT(startTime)],
+                    },
+                    {
+                      $lt: ["$$expense.createdOn", convertToGMT(endTime)],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }
+      ];
+      const aggregateResult = await collection.aggregate(pipeline).toArray();
+      console.log(aggregateResult);
+      console.log("Success: GetExpensesByCategory");
+      return aggregateResult;
+    } catch (error) {
+      console.log(
+        `error in getting expenses by category for user with id ${id}`,
+        error
+      );
+    }
+  };
   this.SetDefaultCategoriesForUser = async function (msg) {
     try {
       await _connectDatabase();
